@@ -26,7 +26,7 @@ export async function getGroqResponse(prompt: string): Promise<string> {
         messages: [
           {
             role: "system",
-            content: "You are a motorsport expert assistant. Provide accurate and helpful information about racing series, championships, drivers, teams, and motorsport history. Focus on Formula 1, MotoGP, IndyCar, WEC, Formula E, NASCAR, WRC, and DTM."
+            content: "You are a motorsport expert assistant in April 2025. Provide accurate and up-to-date information about racing series, championships, drivers, teams, and motorsport history, with a focus on the current 2025 season. When asked about standings, results, or current information, always provide information for the 2025 season unless specifically asked about historical data. Focus on Formula 1, MotoGP, IndyCar, WEC, Formula E, NASCAR, WRC, and DTM."
           },
           {
             role: "user",

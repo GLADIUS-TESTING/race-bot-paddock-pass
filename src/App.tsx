@@ -9,7 +9,9 @@ import Chatbot from "./pages/Chatbot";
 import LiveTiming from "./pages/LiveTiming";
 import SeriesDetail from "./pages/SeriesDetail";
 import NotFound from "./pages/NotFound";
+import { useEffect } from "react";
 
+// Set up the query client with default options
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -19,23 +21,32 @@ const queryClient = new QueryClient({
   },
 });
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/chatbot" element={<Chatbot />} />
-          <Route path="/timing" element={<LiveTiming />} />
-          <Route path="/series/:seriesId" element={<SeriesDetail />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  // Force dark mode on mount
+  useEffect(() => {
+    document.documentElement.classList.add('dark');
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <div className="carbon-background min-h-screen">
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/chatbot" element={<Chatbot />} />
+              <Route path="/timing" element={<LiveTiming />} />
+              <Route path="/series/:seriesId" element={<SeriesDetail />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </div>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
