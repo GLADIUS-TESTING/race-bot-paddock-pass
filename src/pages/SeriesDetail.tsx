@@ -1,38 +1,18 @@
 
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ChevronLeft, Trophy, Calendar, Flag, Users, Car } from "lucide-react";
+import { ChevronLeft, Trophy, Calendar, Flag, Users, Car, RefreshCcw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { useToast } from "@/components/ui/use-toast";
 import Navbar from "@/components/Navbar";
+import { getCurrentDriverStandings, getCurrentConstructorStandings, getCurrentSeason } from "@/utils/ergastApi";
 
-// Sample data for different racing series
+// Sample data for different racing series (we'll use this for non-F1 series)
 const seriesData: Record<string, SeriesInfo> = {
-  "formula-1": {
-    name: "Formula 1",
-    fullName: "FIA Formula One World Championship",
-    description: "Formula 1 is the highest class of international racing for open-wheel single-seater formula racing cars. Teams compete with the fastest purpose-built cars regulated by the FIA.",
-    currentChampion: "Max Verstappen (Red Bull Racing)",
-    constructorChampion: "Red Bull Racing",
-    nextRace: "Miami Grand Prix (May 8, 2025)",
-    pointSystem: "25-18-15-12-10-8-6-4-2-1 for top 10 finishers, plus 1 point for fastest lap if in top 10",
-    standings: [
-      { position: 1, driver: "Max Verstappen", team: "Red Bull Racing", points: 392 },
-      { position: 2, driver: "Charles Leclerc", team: "Ferrari", points: 328 },
-      { position: 3, driver: "Lando Norris", team: "McLaren", points: 315 },
-      { position: 4, driver: "Lewis Hamilton", team: "Mercedes", points: 299 },
-      { position: 5, driver: "Carlos Sainz", team: "Ferrari", points: 275 },
-    ],
-    teamStandings: [
-      { position: 1, team: "Red Bull Racing", points: 612 },
-      { position: 2, team: "Ferrari", points: 603 },
-      { position: 3, team: "McLaren", points: 542 },
-      { position: 4, team: "Mercedes", points: 521 },
-      { position: 5, team: "Aston Martin", points: 180 },
-    ]
-  },
   "motogp": {
     name: "MotoGP",
     fullName: "FIM MotoGP World Championship",
@@ -223,15 +203,141 @@ interface TeamStandingEntry {
 const SeriesDetail = () => {
   const { seriesId } = useParams<{ seriesId: string }>();
   const [activeTab, setActiveTab] = useState("overview");
-  const series = seriesId ? seriesData[seriesId] : null;
+  const { toast } = useToast();
+  
+  // Only fetch data for Formula 1
+  const isF1 = seriesId === "formula-1";
+  
+  // Fetch current driver standings from Ergast API for F1
+  const { 
+    data: driversData, 
+    isLoading: isDriversLoading,
+    refetch: refetchDrivers
+  } = useQuery({
+    queryKey: ['driverStandings'],
+    queryFn: getCurrentDriverStandings,
+    staleTime: 300000, // 5 minutes
+    enabled: isF1,
+  });
+
+  // Fetch current constructor standings from Ergast API for F1
+  const { 
+    data: constructorsData, 
+    isLoading: isConstructorsLoading,
+    refetch: refetchConstructors
+  } = useQuery({
+    queryKey: ['constructorStandings'],
+    queryFn: getCurrentConstructorStandings,
+    staleTime: 300000, // 5 minutes
+    enabled: isF1,
+  });
+
+  // Fetch current season calendar from Ergast API for F1
+  const { 
+    data: calendarData, 
+    isLoading: isCalendarLoading,
+    refetch: refetchCalendar
+  } = useQuery({
+    queryKey: ['seasonCalendar'],
+    queryFn: getCurrentSeason,
+    staleTime: 300000, // 5 minutes
+    enabled: isF1,
+  });
+
+  // Format driver standings for F1
+  const formatDriverStandings = (): StandingEntry[] => {
+    if (!isF1 || !driversData || driversData.length === 0) {
+      return seriesData[seriesId as string]?.standings || [];
+    }
+    
+    return driversData.slice(0, 10).map((driver: any) => ({
+      position: parseInt(driver.position),
+      driver: `${driver.Driver.givenName} ${driver.Driver.familyName}`,
+      team: driver.Constructors[0]?.name || "Unknown Team",
+      points: parseFloat(driver.points)
+    }));
+  };
+
+  // Format constructor standings for F1
+  const formatConstructorStandings = (): TeamStandingEntry[] => {
+    if (!isF1 || !constructorsData || constructorsData.length === 0) {
+      return seriesData[seriesId as string]?.teamStandings || [];
+    }
+    
+    return constructorsData.slice(0, 10).map((constructor: any) => ({
+      position: parseInt(constructor.position),
+      team: constructor.Constructor.name,
+      points: parseFloat(constructor.points)
+    }));
+  };
+
+  // Find next race in calendar
+  const findNextRace = (): string => {
+    if (!isF1 || !calendarData || calendarData.length === 0) {
+      return seriesData[seriesId as string]?.nextRace || "Unknown";
+    }
+    
+    const now = new Date();
+    
+    for (const race of calendarData) {
+      const raceDate = new Date(race.date + "T" + (race.time || "13:00:00Z"));
+      if (raceDate > now) {
+        return `${race.raceName} (${new Date(race.date).toLocaleDateString()})`;
+      }
+    }
+    
+    return "Season Completed";
+  };
+
+  // Get series information
+  const getSeriesInfo = (): SeriesInfo | null => {
+    if (!seriesId) return null;
+    
+    if (isF1 && driversData && constructorsData) {
+      const leaders = driversData.length > 0 ? driversData[0] : null;
+      const leaderTeam = constructorsData.length > 0 ? constructorsData[0] : null;
+      
+      return {
+        name: "Formula 1",
+        fullName: "FIA Formula One World Championship",
+        description: "Formula 1 is the highest class of international racing for open-wheel single-seater formula racing cars. Teams compete with the fastest purpose-built cars regulated by the FIA.",
+        currentChampion: leaders 
+          ? `${leaders.Driver.givenName} ${leaders.Driver.familyName} (${leaders.Constructors[0]?.name || "Unknown Team"})` 
+          : "Loading...",
+        constructorChampion: leaderTeam ? leaderTeam.Constructor.name : "Loading...",
+        nextRace: findNextRace(),
+        pointSystem: "25-18-15-12-10-8-6-4-2-1 for top 10 finishers, plus 1 point for fastest lap if in top 10",
+        standings: formatDriverStandings(),
+        teamStandings: formatConstructorStandings()
+      };
+    }
+    
+    return seriesData[seriesId] || null;
+  };
   
   useEffect(() => {
+    const series = getSeriesInfo();
     if (series) {
       document.title = `RacePulse - ${series.name}`;
     } else {
       document.title = "RacePulse - Series Not Found";
     }
-  }, [series]);
+  }, [seriesId, driversData, constructorsData]);
+
+  // Handle refresh button click
+  const handleRefresh = () => {
+    if (isF1) {
+      refetchDrivers();
+      refetchConstructors();
+      refetchCalendar();
+      toast({
+        title: "Refreshing data",
+        description: "Getting the latest information",
+      });
+    }
+  };
+
+  const series = getSeriesInfo();
 
   if (!series) {
     return (
@@ -253,24 +359,41 @@ const SeriesDetail = () => {
     );
   }
 
+  const isLoading = isF1 && (isDriversLoading || isConstructorsLoading || isCalendarLoading);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
       
       <main className="flex-1 container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <Button asChild variant="outline" size="sm" className="mb-4">
-            <Link to="/">
-              <ChevronLeft className="mr-1 h-4 w-4" />
-              Back to Home
-            </Link>
-          </Button>
+        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+          <div>
+            <Button asChild variant="outline" size="sm" className="mb-4">
+              <Link to="/">
+                <ChevronLeft className="mr-1 h-4 w-4" />
+                Back to Home
+              </Link>
+            </Button>
+            
+            <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
+              <Flag className="h-6 w-6 text-racing-red" />
+              {series.name}
+            </h1>
+            <p className="text-gray-600">{series.fullName}</p>
+          </div>
           
-          <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
-            <Flag className="h-6 w-6 text-racing-red" />
-            {series.name}
-          </h1>
-          <p className="text-gray-600">{series.fullName}</p>
+          {isF1 && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefresh} 
+              className="mt-4 sm:mt-0 flex items-center gap-1"
+              disabled={isLoading}
+            >
+              <RefreshCcw className="h-4 w-4" />
+              {isLoading ? "Refreshing..." : "Refresh Data"}
+            </Button>
+          )}
         </div>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -291,7 +414,7 @@ const SeriesDetail = () => {
                       <Trophy className="h-5 w-5 text-racing-red mt-0.5" />
                       <div>
                         <h3 className="font-medium">Current Champion</h3>
-                        <p>{series.currentChampion}</p>
+                        <p>{isLoading ? "Loading..." : series.currentChampion}</p>
                       </div>
                     </div>
                     
@@ -299,7 +422,7 @@ const SeriesDetail = () => {
                       <Car className="h-5 w-5 text-racing-red mt-0.5" />
                       <div>
                         <h3 className="font-medium">Constructor Champion</h3>
-                        <p>{series.constructorChampion}</p>
+                        <p>{isLoading ? "Loading..." : series.constructorChampion}</p>
                       </div>
                     </div>
                   </div>
@@ -309,7 +432,7 @@ const SeriesDetail = () => {
                       <Calendar className="h-5 w-5 text-racing-red mt-0.5" />
                       <div>
                         <h3 className="font-medium">Next Race</h3>
-                        <p>{series.nextRace}</p>
+                        <p>{isLoading ? "Loading..." : series.nextRace}</p>
                       </div>
                     </div>
                     
@@ -345,14 +468,25 @@ const SeriesDetail = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {series.standings.map((entry) => (
-                      <TableRow key={entry.position}>
-                        <TableCell className="font-medium">{entry.position}</TableCell>
-                        <TableCell>{entry.driver}</TableCell>
-                        <TableCell>{entry.team}</TableCell>
-                        <TableCell className="text-right font-bold">{entry.points}</TableCell>
-                      </TableRow>
-                    ))}
+                    {isLoading ? (
+                      Array.from({ length: 5 }).map((_, index) => (
+                        <TableRow key={index} className="animate-pulse">
+                          <TableCell><div className="h-5 bg-gray-200 rounded-md w-5"></div></TableCell>
+                          <TableCell><div className="h-5 bg-gray-200 rounded-md w-32"></div></TableCell>
+                          <TableCell><div className="h-5 bg-gray-200 rounded-md w-24"></div></TableCell>
+                          <TableCell className="text-right"><div className="h-5 bg-gray-200 rounded-md w-10 ml-auto"></div></TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      series.standings.map((entry) => (
+                        <TableRow key={entry.position}>
+                          <TableCell className="font-medium">{entry.position}</TableCell>
+                          <TableCell>{entry.driver}</TableCell>
+                          <TableCell>{entry.team}</TableCell>
+                          <TableCell className="text-right font-bold">{entry.points}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -377,13 +511,23 @@ const SeriesDetail = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {series.teamStandings.map((entry) => (
-                      <TableRow key={entry.position}>
-                        <TableCell className="font-medium">{entry.position}</TableCell>
-                        <TableCell>{entry.team}</TableCell>
-                        <TableCell className="text-right font-bold">{entry.points}</TableCell>
-                      </TableRow>
-                    ))}
+                    {isLoading ? (
+                      Array.from({ length: 5 }).map((_, index) => (
+                        <TableRow key={index} className="animate-pulse">
+                          <TableCell><div className="h-5 bg-gray-200 rounded-md w-5"></div></TableCell>
+                          <TableCell><div className="h-5 bg-gray-200 rounded-md w-32"></div></TableCell>
+                          <TableCell className="text-right"><div className="h-5 bg-gray-200 rounded-md w-10 ml-auto"></div></TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      series.teamStandings.map((entry) => (
+                        <TableRow key={entry.position}>
+                          <TableCell className="font-medium">{entry.position}</TableCell>
+                          <TableCell>{entry.team}</TableCell>
+                          <TableCell className="text-right font-bold">{entry.points}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
