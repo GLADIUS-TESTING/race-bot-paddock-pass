@@ -103,13 +103,14 @@ const Index = () => {
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {seriesItems.map((item, index) => (
-              <div 
+              <Link 
                 key={index}
-                className="racing-card flex flex-col items-center p-6 hover:shadow-lg transition-shadow"
+                to={`/series/${item.id}`}
+                className="racing-card flex flex-col items-center p-6 hover:shadow-lg transition-all hover:bg-racing-red/5 cursor-pointer"
               >
                 <item.icon className="h-8 w-8 text-racing-red mb-3" />
                 <h3 className="text-lg font-medium text-center">{item.name}</h3>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -151,16 +152,16 @@ const Index = () => {
   );
 };
 
-// Series data
+// Series data with IDs for routing
 const seriesItems = [
-  { name: "Formula 1", icon: Car },
-  { name: "MotoGP", icon: Car },
-  { name: "WEC", icon: Car },
-  { name: "Formula E", icon: Car },
-  { name: "IndyCar", icon: Car },
-  { name: "NASCAR", icon: Car },
-  { name: "WRC", icon: Car },
-  { name: "DTM", icon: Car },
+  { id: "formula-1", name: "Formula 1", icon: Car },
+  { id: "motogp", name: "MotoGP", icon: Car },
+  { id: "wec", name: "WEC", icon: Car },
+  { id: "formula-e", name: "Formula E", icon: Car },
+  { id: "indycar", name: "IndyCar", icon: Car },
+  { id: "nascar", name: "NASCAR", icon: Car },
+  { id: "wrc", name: "WRC", icon: Car },
+  { id: "dtm", name: "DTM", icon: Car },
 ];
 
 export default Index;
