@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,14 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				racing: {
+					red: '#E10600',
+					black: '#15151E',
+					gray: '#32323A',
+					blue: '#0090FF',
+					yellow: '#FFBE00',
+					white: '#FFFFFF',
 				}
 			},
 			borderRadius: {
@@ -84,11 +93,20 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'pulse-racing': {
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0.7' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'pulse-racing': 'pulse-racing 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+			},
+			backgroundImage: {
+				'carbon-fiber': "url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"15\" height=\"15\"><rect x=\"0\" y=\"0\" width=\"15\" height=\"15\" fill=\"%23222\"/><path d=\"M0,15 L15,0\" stroke=\"%23333\" stroke-width=\"1\"/><path d=\"M15,15 L0,0\" stroke=\"%23333\" stroke-width=\"1\"/></svg>')",
+				'racing-gradient': 'linear-gradient(to right, #E10600, #15151E)'
 			}
 		}
 	},
